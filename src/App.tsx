@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from "react"
 import Arrow, { Direction } from "./Arrow"
 
 const boxSize = 20
-const scoreIncrement = 2
 const scoreForFood = 100
 const speedUpForEvery = 4
 const getNearPixel = (value: number) => value - (value % boxSize)
