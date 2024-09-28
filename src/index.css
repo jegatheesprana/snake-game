@@ -1,0 +1,82 @@
+.App {
+  font-family: sans-serif;
+  text-align: center;
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.container {
+
+  background-color: black;
+}
+
+.box {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  background-color: white;
+}
+
+.food {
+  background-color: red;
+}
+
+.score {
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.score-item {
+  margin: 0;
+}
+
+.dashboard {
+  width: 100vw;
+  max-height: 100px;
+  overflow: hidden;
+  display: flex;
+  justify-content: space-around;
+  flex-direction: row;
+}
+
+.controls {
+  margin: 10px;
+}
+
+.controls button {
+  display: inline-flex;
+    -webkit-box-align: center;
+    align-items: center;
+    -webkit-box-pack: center;
+    justify-content: center;
+    position: relative;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
+    user-select: none;
+    vertical-align: middle;
+    appearance: none;
+    font-family: Roboto, Helvetica, Arial, sans-serif;
+    font-weight: 500;
+    font-size: 0.875rem;
+    line-height: 1.75;
+    letter-spacing: 0.02857em;
+    text-transform: uppercase;
+    color: var(--variant-containedColor);
+    background-color: var(--variant-containedBg);
+    box-shadow: rgba(0, 0, 0, 0.2) 0px 3px 1px -2px, rgba(0, 0, 0, 0.14) 0px 2px 2px 0px, rgba(0, 0, 0, 0.12) 0px 1px 5px 0px;
+    height: 40px;
+    min-width: 50px;
+}
+
+.game-status {
+  position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -100px);
+}
