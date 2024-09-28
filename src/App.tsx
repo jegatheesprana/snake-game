@@ -45,24 +45,10 @@ const getNewRandomPosition = (boxes: Position[]) => {
     return { x, y }
 }
 
-const getNextDirection = (buffer: string[]) => {
+const getNextDirection = (buffer: Direction[]) => {
     if (buffer.length <= 1) return buffer[0]
     buffer.shift()
     return buffer[0]
-}
-
-const pushDirection = (directions: string[], newDirection: string) => {
-    const last = directions[directions.length - 1]
-    if (last !== newDirection) {
-        if (
-            (last === "right" && newDirection !== "left") ||
-            (last === "left" && newDirection !== "right") ||
-            (last === "up" && newDirection !== "down") ||
-            (last === "down" && newDirection !== "up")
-        ) {
-            directions.push(newDirection)
-        }
-    }
 }
 
 export default function App() {
@@ -90,154 +76,229 @@ export default function App() {
     const containerRef = useRef<HTMLDivElement>(null)
     const touchEventRef = useRef<Position>({ x: 0, y: 0 })
     const [speed, setSpeed] = useState(1)
-    const directionRef = useRef<string[]>(["right"])
+    const directionRef = useRef<Direction[]>([Direction.RIGHT])
     const positionRef = useRef(initialPosition)
+    const keyDownRef = useRef<string | null>(null)
+    const touchStartRef = useRef<Direction | null>(null)
+    const fastForwardTimerRef = useRef<number | null>(null)
     const foodRef = useRef(getNewRandomPosition(boxesRef.current))
     const [gameOver, setGameOver] = useState(false)
     const [food, setFood] = useState(foodRef.current)
     const [highScore, setHighScore] = useState(Number(localStorage.getItem("highScore") ?? "0"))
 
+    const pushDirection = (newDirection: Direction) => {
+        const last = directionRef.current[directionRef.current.length - 1]
+        if (last === newDirection) {
+            return true
+        } else {
+            if (
+                (last === Direction.RIGHT && newDirection !== Direction.LEFT) ||
+                (last === Direction.LEFT && newDirection !== Direction.RIGHT) ||
+                (last === Direction.UP && newDirection !== Direction.DOWN) ||
+                (last === Direction.DOWN && newDirection !== Direction.UP)
+            ) {
+                directionRef.current.push(newDirection)
+            }
+        }
+        return false
+    }
+
+    const movePosition = (direction: Direction) => {
+        let temPosition = {
+            x: positionRef.current.x,
+            y: positionRef.current.y,
+        }
+
+        switch (direction) {
+            case Direction.UP:
+                temPosition.y -= boxSize
+                break
+            case Direction.DOWN:
+                temPosition.y += boxSize
+                break
+            case Direction.RIGHT:
+                temPosition.x += boxSize
+                break
+            case Direction.LEFT:
+                temPosition.x -= boxSize
+                break
+        }
+
+        temPosition = correctPosition(temPosition)
+
+        const lastRemoved = [...boxesRef.current]
+        lastRemoved.shift()
+
+        const isValid = validateNewPosition(lastRemoved, temPosition)
+        const ateFood = temPosition.x === foodRef.current.x && temPosition.y === foodRef.current.y
+        if (!isValid) {
+            setGameOver(true)
+        } else if (ateFood) {
+            boxesRef.current.push(temPosition)
+            const newFoodPosition = getNewRandomPosition(boxesRef.current)
+            foodRef.current = newFoodPosition
+            setScore((score) => score + scoreForFood)
+            setFood(newFoodPosition)
+
+            if (speedUpCounterRef.current > speedUpForEvery) {
+                setSpeed((speed) => speed + 0.3)
+                speedUpCounterRef.current = 0
+            } else {
+                speedUpCounterRef.current += 1
+            }
+        } else {
+            boxesRef.current.push(temPosition)
+            boxesRef.current.shift()
+        }
+        setBoxes([...boxesRef.current])
+
+        positionRef.current = temPosition
+    }
+
     const onUp = () => {
-        pushDirection(directionRef.current, "up")
+        return pushDirection(Direction.UP)
     }
 
     const onDown = () => {
-        pushDirection(directionRef.current, "down")
+        return pushDirection(Direction.DOWN)
     }
 
     const onLeft = () => {
-        pushDirection(directionRef.current, "left")
+        return pushDirection(Direction.LEFT)
     }
 
     const onRight = () => {
-        pushDirection(directionRef.current, "right")
+        return pushDirection(Direction.RIGHT)
+    }
+
+    const startFastForward = (direction: Direction) => {
+        if (fastForwardTimerRef.current) return
+        fastForwardTimerRef.current = setInterval(() => {
+            movePosition(direction)
+        }, 100)
+    }
+
+    const stopFastForward = () => {
+        clearInterval(fastForwardTimerRef.current as number)
+        fastForwardTimerRef.current = null
     }
 
     useEffect(() => {
-        document.addEventListener(
-            "keydown",
-            (event) => {
-                switch (event.key) {
-                    case "ArrowLeft":
-                        onLeft()
-                        break
-                    case "ArrowRight":
-                        onRight()
-                        break
-                    case "ArrowUp":
-                        onUp()
-                        break
-                    case "ArrowDown":
-                        onDown()
-                        break
-                }
-            },
-            false
-        )
+        const handleKeyDown = (event: KeyboardEvent) => {
+            let same = false
+            let direction: Direction = Direction.RIGHT
+            switch (event.key) {
+                case "ArrowLeft":
+                    same = onLeft()
+                    direction = Direction.LEFT
+                    break
+                case "ArrowRight":
+                    same = onRight()
+                    direction = Direction.RIGHT
+                    break
+                case "ArrowUp":
+                    same = onUp()
+                    direction = Direction.UP
+                    break
+                case "ArrowDown":
+                    same = onDown()
+                    direction = Direction.DOWN
+                    break
+            }
+            if (same) {
+                keyDownRef.current = event.key
+                startFastForward(direction)
+            } else {
+                keyDownRef.current = null
+            }
+        }
 
-        document.addEventListener(
-            "touchstart",
-            (event) => {
-                touchEventRef.current = { x: event.touches[0].clientX, y: event.touches[0].clientY }
-            },
-            false
-        )
+        const handleKeyUp = (event: KeyboardEvent) => {
+            if (keyDownRef.current !== null && event.key === keyDownRef.current) {
+                stopFastForward()
+            }
+        }
 
-        document.addEventListener(
-            "touchmove",
-            (event) => {
-                const xDown = touchEventRef.current.x
-                const yDown = touchEventRef.current.y
+        const handleTouchStart = (event: TouchEvent) => {
+            touchEventRef.current = { x: event.touches[0].clientX, y: event.touches[0].clientY }
+        }
 
-                if (!xDown || !yDown) {
-                    return
-                }
+        const handleTouchMove = (event: TouchEvent) => {
+            const xDown = touchEventRef.current.x
+            const yDown = touchEventRef.current.y
 
-                var xUp = event.touches[0].clientX
-                var yUp = event.touches[0].clientY
+            if (!xDown || !yDown) {
+                return
+            }
 
-                var xDiff = xDown - xUp
-                var yDiff = yDown - yUp
+            var xUp = event.touches[0].clientX
+            var yUp = event.touches[0].clientY
 
-                if (Math.abs(xDiff) > Math.abs(yDiff)) {
-                    /*most significant*/
-                    if (xDiff > 0) {
-                        /* left swipe */
-                        onLeft()
-                    } else {
-                        /* right swipe */
-                        onRight()
-                    }
+            var xDiff = xDown - xUp
+            var yDiff = yDown - yUp
+
+            let same = false
+            let direction
+
+            if (Math.abs(xDiff) > Math.abs(yDiff)) {
+                /*most significant*/
+                if (xDiff > 0) {
+                    /* left swipe */
+                    same = onLeft()
+                    direction = Direction.LEFT
                 } else {
-                    if (yDiff > 0) {
-                        /* up swipe */
-                        onUp()
-                    } else {
-                        /* down swipe */
-                        onDown()
-                    }
+                    /* right swipe */
+                    same = onRight()
+                    direction = Direction.RIGHT
                 }
-                /* reset values */
-                touchEventRef.current = { x: 0, y: 0 }
-            },
-            false
-        )
+            } else {
+                if (yDiff > 0) {
+                    /* up swipe */
+                    same = onUp()
+                    direction = Direction.UP
+                } else {
+                    /* down swipe */
+                    same = onDown()
+                    direction = Direction.DOWN
+                }
+            }
+            /* reset values */
+            touchEventRef.current = { x: 0, y: 0 }
+
+            if (same) {
+                touchStartRef.current = direction
+                startFastForward(direction)
+            } else {
+                touchStartRef.current = null
+            }
+
+            event.preventDefault()
+        }
+
+        const handleTouchEnd = () => {
+            stopFastForward()
+        }
+
+        document.addEventListener("keydown", handleKeyDown, false)
+        document.addEventListener("keyup", handleKeyUp, false)
+        document.addEventListener("touchstart", handleTouchStart, false)
+        document.addEventListener("touchmove", handleTouchMove, { passive: false })
+        document.addEventListener("touchend", handleTouchEnd, false)
+
+        return () => {
+            document.removeEventListener("keydown", handleKeyDown)
+            document.removeEventListener("keyup", handleKeyUp)
+            document.removeEventListener("touchstart", handleTouchStart)
+            document.removeEventListener("touchmove", handleTouchMove)
+            document.removeEventListener("touchend", handleTouchEnd)
+        }
     }, [])
 
     useEffect(() => {
         if (gameOver) return
         const interval = setInterval(() => {
-            let temPosition = {
-                x: positionRef.current.x,
-                y: positionRef.current.y,
-            }
-
             const nextDirection = getNextDirection(directionRef.current)
-            console.log(nextDirection)
-            switch (nextDirection) {
-                case "up":
-                    temPosition.y -= boxSize
-                    break
-                case "down":
-                    temPosition.y += boxSize
-                    break
-                case "right":
-                    temPosition.x += boxSize
-                    break
-                case "left":
-                    temPosition.x -= boxSize
-                    break
-            }
-
-            temPosition = correctPosition(temPosition)
-
-            const lastRemoved = [...boxesRef.current]
-            lastRemoved.shift()
-
-            const isValid = validateNewPosition(lastRemoved, temPosition)
-            const ateFood = temPosition.x === foodRef.current.x && temPosition.y === foodRef.current.y
-            if (!isValid) {
-                setGameOver(true)
-            } else if (ateFood) {
-                boxesRef.current.push(temPosition)
-                const newFoodPosition = getNewRandomPosition(boxesRef.current)
-                foodRef.current = newFoodPosition
-                setScore((score) => score + scoreForFood)
-                setFood(newFoodPosition)
-
-                if (speedUpCounterRef.current > speedUpForEvery) {
-                    setSpeed((speed) => speed + 0.3)
-                    speedUpCounterRef.current = 0
-                } else {
-                    speedUpCounterRef.current += 1
-                }
-            } else {
-                boxesRef.current.push(temPosition)
-                boxesRef.current.shift()
-            }
-            setBoxes([...boxesRef.current])
-
-            positionRef.current = temPosition
+            movePosition(nextDirection)
         }, (1000 / speed) * 0.8)
         return () => {
             clearInterval(interval)
@@ -274,7 +335,7 @@ export default function App() {
         setScore(0)
         speedUpCounterRef.current = 0
         setSpeed(1)
-        directionRef.current = ["right"]
+        directionRef.current = [Direction.RIGHT]
         positionRef.current = initialPosition
         foodRef.current = getNewRandomPosition(boxesRef.current)
         setGameOver(false)
