@@ -45,6 +45,26 @@ const getNewRandomPosition = (boxes: Position[]) => {
     return { x, y }
 }
 
+const getNextDirection = (buffer: string[]) => {
+    if (buffer.length <= 1) return buffer[0]
+    buffer.shift()
+    return buffer[0]
+}
+
+const pushDirection = (directions: string[], newDirection: string) => {
+    const last = directions[directions.length - 1]
+    if (last !== newDirection) {
+        if (
+            (last === "right" && newDirection !== "left") ||
+            (last === "left" && newDirection !== "right") ||
+            (last === "up" && newDirection !== "down") ||
+            (last === "down" && newDirection !== "up")
+        ) {
+            directions.push(newDirection)
+        }
+    }
+}
+
 export default function App() {
     const boxesRef = useRef<Position[]>([
         correctPosition({
@@ -68,8 +88,9 @@ export default function App() {
     const [score, setScore] = useState(0)
     const speedUpCounterRef = useRef(0)
     const containerRef = useRef<HTMLDivElement>(null)
+    const touchEventRef = useRef<Position>({ x: 0, y: 0 })
     const [speed, setSpeed] = useState(1)
-    const directionRef = useRef("right")
+    const directionRef = useRef<string[]>(["right"])
     const positionRef = useRef(initialPosition)
     const foodRef = useRef(getNewRandomPosition(boxesRef.current))
     const [gameOver, setGameOver] = useState(false)
@@ -77,38 +98,90 @@ export default function App() {
     const [highScore, setHighScore] = useState(Number(localStorage.getItem("highScore") ?? "0"))
 
     const onUp = () => {
-        directionRef.current = "up"
+        pushDirection(directionRef.current, "up")
     }
 
     const onDown = () => {
-        directionRef.current = "down"
+        pushDirection(directionRef.current, "down")
     }
 
     const onLeft = () => {
-        directionRef.current = "left"
+        pushDirection(directionRef.current, "left")
     }
 
     const onRight = () => {
-        directionRef.current = "right"
+        pushDirection(directionRef.current, "right")
     }
 
     useEffect(() => {
-        document.addEventListener("keydown", (event) => {
-            switch (event.key) {
-                case "ArrowLeft":
-                    onLeft()
-                    break
-                case "ArrowRight":
-                    onRight()
-                    break
-                case "ArrowUp":
-                    onUp()
-                    break
-                case "ArrowDown":
-                    onDown()
-                    break
-            }
-        })
+        document.addEventListener(
+            "keydown",
+            (event) => {
+                switch (event.key) {
+                    case "ArrowLeft":
+                        onLeft()
+                        break
+                    case "ArrowRight":
+                        onRight()
+                        break
+                    case "ArrowUp":
+                        onUp()
+                        break
+                    case "ArrowDown":
+                        onDown()
+                        break
+                }
+            },
+            false
+        )
+
+        document.addEventListener(
+            "touchstart",
+            (event) => {
+                touchEventRef.current = { x: event.touches[0].clientX, y: event.touches[0].clientY }
+            },
+            false
+        )
+
+        document.addEventListener(
+            "touchmove",
+            (event) => {
+                const xDown = touchEventRef.current.x
+                const yDown = touchEventRef.current.y
+
+                if (!xDown || !yDown) {
+                    return
+                }
+
+                var xUp = event.touches[0].clientX
+                var yUp = event.touches[0].clientY
+
+                var xDiff = xDown - xUp
+                var yDiff = yDown - yUp
+
+                if (Math.abs(xDiff) > Math.abs(yDiff)) {
+                    /*most significant*/
+                    if (xDiff > 0) {
+                        /* left swipe */
+                        onLeft()
+                    } else {
+                        /* right swipe */
+                        onRight()
+                    }
+                } else {
+                    if (yDiff > 0) {
+                        /* up swipe */
+                        onUp()
+                    } else {
+                        /* down swipe */
+                        onDown()
+                    }
+                }
+                /* reset values */
+                touchEventRef.current = { x: 0, y: 0 }
+            },
+            false
+        )
     }, [])
 
     useEffect(() => {
@@ -119,7 +192,9 @@ export default function App() {
                 y: positionRef.current.y,
             }
 
-            switch (directionRef.current) {
+            const nextDirection = getNextDirection(directionRef.current)
+            console.log(nextDirection)
+            switch (nextDirection) {
                 case "up":
                     temPosition.y -= boxSize
                     break
@@ -163,7 +238,7 @@ export default function App() {
             setBoxes([...boxesRef.current])
 
             positionRef.current = temPosition
-        }, 1000 / speed)
+        }, (1000 / speed) * 0.8)
         return () => {
             clearInterval(interval)
         }
@@ -199,7 +274,7 @@ export default function App() {
         setScore(0)
         speedUpCounterRef.current = 0
         setSpeed(1)
-        directionRef.current = "right"
+        directionRef.current = ["right"]
         positionRef.current = initialPosition
         foodRef.current = getNewRandomPosition(boxesRef.current)
         setGameOver(false)
