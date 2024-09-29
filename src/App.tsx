@@ -174,7 +174,7 @@ export default function App() {
     const [gameOver, setGameOver] = useState(false)
     const [food, setFood] = useState(foodRef.current)
     const [highScore, setHighScore] = useState(Number(localStorage.getItem("highScore") ?? "0"))
-    const [paused, setPaused] = useState(true)
+    const [paused, setPaused] = useState(false)
 
     const pushDirection = (newDirection: Direction) => {
         const last = directionRef.current[directionRef.current.length - 1]
@@ -441,7 +441,7 @@ export default function App() {
 
     const handlePlayAgain = () => {
         boxesRef.current = initialSnake
-        setBoxes(boxesRef.current)
+        setBoxes([...boxesRef.current])
         setScore(0)
         speedUpCounterRef.current = 0
         setSpeed(1)
