@@ -13,14 +13,118 @@
   background-color: black;
 }
 
-.box {
+/* snake body */
+
+.snake {
   position: absolute;
   width: 15px;
   height: 15px;
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+}
+
+.snake.right {
+  transform: rotate(0deg);
+}
+
+.snake.left {
+  transform: rotate(180deg);
+}
+
+.snake.up {
+  transform: rotate(270deg);
+}
+
+.snake.down {
+  transform: rotate(90deg);
+}
+
+.body-top {
+  background-color: white;
+  width: 100%;
+  height: 7px;
+  margin-bottom: 2px;
+}
+
+.body-bottom {
+  background-color: white;
+  width: 100%;
+  height: 2px;
+}
+
+.snake-head .body-top {
+  height: 10px;
+  border-top-right-radius: 100%;
+  border-top-left-radius: 50%;
+  overflow: hidden;
+}
+
+.snake-open-mouth .body-top {
+  height: 8px;
+  border-top-right-radius: 100%;
+  border-top-left-radius: 50%;
+  overflow: hidden;
+  transform: rotate(-30deg) translate(2px, -5px);
+}
+
+.snake-open-mouth .body-bottom {
+  transform: rotate(10deg) translate(2px, 2px);
+}
+
+.snake-tail .body-top {
+  height: 7px;
+  overflow: hidden;
+  background-color: transparent;
+  position: relative;
+}
+
+.snake-tail .body-top::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 3px;
+  width: 100%;
+  height: 100%;
+  -ms-transform: skewY(-20deg);
+  -webkit-transform: skewY(-20deg);
+  transform: skewY(-20deg);
   background-color: white;
 }
 
+.snake-body.ate-food .body-top {
+  height: 11px;
+  border-top-right-radius: 40%;
+  border-top-left-radius: 40%;
+
+}
+
+.snake-body.bend {
+  overflow: hidden;
+}
+
+.snake-body.bend .inner-body-cont {
+  width: 200%;
+}
+
+.snake-body.bend .inner-body-cont.inward {
+  transform: rotate(-45deg) translate(0px, -12px);
+}
+
+.snake-body.bend .inner-body-cont.outward {
+  transform: rotate(45deg) translate(-10px, 10px);
+}
+
+.snake-body.bend .inner-body-cont .body-top {
+  height: 4px;
+}
+
+/* end of body */
+
 .food {
+  position: absolute;
+  width: 15px;
+  height: 15px;
   background-color: red;
 }
 
@@ -79,4 +183,10 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -100px);
+}
+
+.pause-button {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }

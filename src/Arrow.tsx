@@ -1,9 +1,4 @@
-export enum Direction {
-    UP,
-    DOWN,
-    LEFT,
-    RIGHT,
-}
+import { Direction } from "./App"
 
 type ArrowProps = {
     direction: Direction

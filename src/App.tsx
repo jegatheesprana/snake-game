@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react"
-import Arrow, { Direction } from "./Arrow"
+import Arrow from "./Arrow"
 
 const boxSize = 20
 const scoreForFood = 100
@@ -8,9 +8,33 @@ const getNearPixel = (value: number) => value - (value % boxSize)
 const maxHeight = getNearPixel(document.body.clientHeight) - 100
 const maxWidth = getNearPixel(document.body.clientWidth)
 
+export enum Direction {
+    UP = "up",
+    DOWN = "down",
+    LEFT = "left",
+    RIGHT = "right",
+}
+
 type Position = {
     x: number
     y: number
+}
+
+enum SnakePartType {
+    HEAD = "head",
+    OPEN_MOUTH = "open-mouth",
+    BODY = "body",
+    TAIL = "tail",
+}
+
+type SnakePart = {
+    id: string
+    position: Position
+    bend: boolean
+    inward?: boolean
+    direction: Direction
+    type: SnakePartType
+    ateFood: boolean
 }
 
 const correctPosition = (position: Position) => {
@@ -26,16 +50,16 @@ const initialPosition = {
     y: getNearPixel(maxHeight / 2),
 }
 
-const validateNewPosition = (boxes: Position[], newPosition: Position) => {
+const validateNewPosition = (boxes: SnakePart[], newPosition: Position) => {
     for (const box of boxes) {
-        if (box.x === newPosition.x && box.y === newPosition.y) {
+        if (box.position.x === newPosition.x && box.position.y === newPosition.y) {
             return false
         }
     }
     return true
 }
 
-const getNewRandomPosition = (boxes: Position[]) => {
+const getNewRandomPosition = (boxes: SnakePart[]) => {
     const x = getNearPixel(Math.random() * maxWidth)
     const y = getNearPixel(Math.random() * maxHeight)
     const inBody = !validateNewPosition(boxes, { x, y })
@@ -51,25 +75,90 @@ const getNextDirection = (buffer: Direction[]) => {
     return buffer[0]
 }
 
-export default function App() {
-    const boxesRef = useRef<Position[]>([
-        correctPosition({
-            x: initialPosition.x - 3 * boxSize,
-            y: initialPosition.y,
-        }),
-        correctPosition({
-            x: initialPosition.x - 2 * boxSize,
-            y: initialPosition.y,
-        }),
-        correctPosition({
-            x: initialPosition.x - boxSize,
-            y: initialPosition.y,
-        }),
-        correctPosition({
+function generateId(): string {
+    var S4 = function () {
+        return (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1)
+    }
+    return S4() + S4() + "-" + S4() + "-" + S4() + "-" + S4() + "-" + S4() + S4() + S4()
+}
+
+const incrementPosition = (position: Position, direction: Direction) => {
+    switch (direction) {
+        case Direction.UP:
+            position.y -= boxSize
+            break
+        case Direction.DOWN:
+            position.y += boxSize
+            break
+        case Direction.RIGHT:
+            position.x += boxSize
+            break
+        case Direction.LEFT:
+            position.x -= boxSize
+            break
+    }
+}
+
+const initialSnake: SnakePart[] = [
+    {
+        id: generateId(),
+        position: correctPosition({
             x: initialPosition.x,
             y: initialPosition.y,
         }),
-    ])
+        bend: false,
+        direction: Direction.RIGHT,
+        type: SnakePartType.HEAD,
+        ateFood: false,
+    },
+    {
+        id: generateId(),
+        position: correctPosition({
+            x: initialPosition.x - boxSize,
+            y: initialPosition.y,
+        }),
+        bend: false,
+        direction: Direction.RIGHT,
+        type: SnakePartType.BODY,
+        ateFood: false,
+    },
+    {
+        id: generateId(),
+        position: correctPosition({
+            x: initialPosition.x - 2 * boxSize,
+            y: initialPosition.y,
+        }),
+        bend: false,
+        direction: Direction.RIGHT,
+        type: SnakePartType.BODY,
+        ateFood: false,
+    },
+    {
+        id: generateId(),
+        position: correctPosition({
+            x: initialPosition.x - 3 * boxSize,
+            y: initialPosition.y,
+        }),
+        bend: false,
+        direction: Direction.RIGHT,
+        type: SnakePartType.BODY,
+        ateFood: false,
+    },
+    {
+        id: generateId(),
+        position: correctPosition({
+            x: initialPosition.x - 4 * boxSize,
+            y: initialPosition.y,
+        }),
+        bend: false,
+        direction: Direction.RIGHT,
+        type: SnakePartType.TAIL,
+        ateFood: false,
+    },
+]
+
+export default function App() {
+    const boxesRef = useRef<SnakePart[]>(initialSnake)
     const [boxes, setBoxes] = useState(boxesRef.current)
     const [score, setScore] = useState(0)
     const speedUpCounterRef = useRef(0)
@@ -85,6 +174,7 @@ export default function App() {
     const [gameOver, setGameOver] = useState(false)
     const [food, setFood] = useState(foodRef.current)
     const [highScore, setHighScore] = useState(Number(localStorage.getItem("highScore") ?? "0"))
+    const [paused, setPaused] = useState(true)
 
     const pushDirection = (newDirection: Direction) => {
         const last = directionRef.current[directionRef.current.length - 1]
@@ -109,32 +199,67 @@ export default function App() {
             y: positionRef.current.y,
         }
 
-        switch (direction) {
-            case Direction.UP:
-                temPosition.y -= boxSize
-                break
-            case Direction.DOWN:
-                temPosition.y += boxSize
-                break
-            case Direction.RIGHT:
-                temPosition.x += boxSize
-                break
-            case Direction.LEFT:
-                temPosition.x -= boxSize
-                break
-        }
+        incrementPosition(temPosition, direction)
 
         temPosition = correctPosition(temPosition)
 
         const lastRemoved = [...boxesRef.current]
-        lastRemoved.shift()
+        lastRemoved.pop()
 
         const isValid = validateNewPosition(lastRemoved, temPosition)
-        const ateFood = temPosition.x === foodRef.current.x && temPosition.y === foodRef.current.y
         if (!isValid) {
             setGameOver(true)
-        } else if (ateFood) {
-            boxesRef.current.push(temPosition)
+            return
+        }
+
+        const ateFood = temPosition.x === foodRef.current.x && temPosition.y === foodRef.current.y
+        const currentHead = { ...boxesRef.current.shift() } as SnakePart
+        const directionChanged = currentHead.direction !== direction
+        const newHead: SnakePart = {
+            id: generateId(),
+            position: temPosition,
+            bend: false,
+            direction,
+            type: SnakePartType.HEAD,
+            ateFood,
+        }
+
+        // predict food above
+        const duplicatePosition: Position = { ...temPosition }
+        incrementPosition(duplicatePosition, direction)
+        const willEat = duplicatePosition.x === foodRef.current.x && duplicatePosition.y === foodRef.current.y
+        if (willEat) {
+            newHead.type = SnakePartType.OPEN_MOUTH
+        }
+
+        currentHead.type = SnakePartType.BODY
+        currentHead.bend = directionChanged
+        if (directionChanged) {
+            let inward =
+                (currentHead.direction === Direction.RIGHT && direction === Direction.UP) ||
+                (currentHead.direction === Direction.UP && direction === Direction.LEFT) ||
+                (currentHead.direction === Direction.LEFT && direction === Direction.DOWN) ||
+                (currentHead.direction === Direction.DOWN && direction === Direction.RIGHT)
+            currentHead.inward = inward
+        }
+
+        boxesRef.current.unshift(currentHead)
+        boxesRef.current.unshift(newHead)
+        const tail = boxesRef.current.pop()
+        if (tail?.ateFood) {
+            const newTail: SnakePart = {
+                ...tail,
+                ateFood: false,
+            }
+            boxesRef.current.push(newTail)
+        } else {
+            const lastBody = { ...boxesRef.current.pop() } as SnakePart
+            lastBody.type = SnakePartType.TAIL
+            lastBody.direction = boxesRef.current[boxesRef.current.length - 1].direction
+            boxesRef.current.push(lastBody)
+        }
+
+        if (ateFood) {
             const newFoodPosition = getNewRandomPosition(boxesRef.current)
             foodRef.current = newFoodPosition
             setScore((score) => score + scoreForFood)
@@ -146,9 +271,6 @@ export default function App() {
             } else {
                 speedUpCounterRef.current += 1
             }
-        } else {
-            boxesRef.current.push(temPosition)
-            boxesRef.current.shift()
         }
         setBoxes([...boxesRef.current])
 
@@ -179,11 +301,13 @@ export default function App() {
     }
 
     const stopFastForward = () => {
+        if (!fastForwardTimerRef.current) return
         clearInterval(fastForwardTimerRef.current as number)
         fastForwardTimerRef.current = null
     }
 
     useEffect(() => {
+        if (paused) return
         const handleKeyDown = (event: KeyboardEvent) => {
             let same = false
             let direction: Direction = Direction.RIGHT
@@ -292,10 +416,13 @@ export default function App() {
             document.removeEventListener("touchmove", handleTouchMove)
             document.removeEventListener("touchend", handleTouchEnd)
         }
-    }, [])
+    }, [paused])
 
     useEffect(() => {
-        if (gameOver) return
+        if (gameOver || paused) {
+            stopFastForward()
+            return
+        }
         const interval = setInterval(() => {
             const nextDirection = getNextDirection(directionRef.current)
             movePosition(nextDirection)
@@ -303,7 +430,7 @@ export default function App() {
         return () => {
             clearInterval(interval)
         }
-    }, [speed, gameOver])
+    }, [speed, gameOver, paused])
 
     useEffect(() => {
         if (score > highScore) {
@@ -313,24 +440,7 @@ export default function App() {
     }, [gameOver])
 
     const handlePlayAgain = () => {
-        boxesRef.current = [
-            correctPosition({
-                x: initialPosition.x - 3 * boxSize,
-                y: initialPosition.y,
-            }),
-            correctPosition({
-                x: initialPosition.x - 2 * boxSize,
-                y: initialPosition.y,
-            }),
-            correctPosition({
-                x: initialPosition.x - boxSize,
-                y: initialPosition.y,
-            }),
-            correctPosition({
-                x: initialPosition.x,
-                y: initialPosition.y,
-            }),
-        ]
+        boxesRef.current = initialSnake
         setBoxes(boxesRef.current)
         setScore(0)
         speedUpCounterRef.current = 0
@@ -342,18 +452,53 @@ export default function App() {
         setFood(foodRef.current)
     }
 
+    const renderInnerBody = (bodyPart: SnakePart) => {
+        if (bodyPart.type === SnakePartType.BODY) {
+            if (bodyPart.bend) {
+                return (
+                    <div className={`inner-body-cont ${bodyPart.inward ? "inward" : "outward"}`}>
+                        <div className="body-top"></div>
+                        <div className="body-bottom"></div>
+                    </div>
+                )
+            } else {
+                return (
+                    <>
+                        <div className="body-top"></div>
+                        <div className="body-bottom"></div>
+                    </>
+                )
+            }
+        } else if (
+            bodyPart.type === SnakePartType.HEAD ||
+            bodyPart.type === SnakePartType.TAIL ||
+            bodyPart.type === SnakePartType.OPEN_MOUTH
+        ) {
+            return (
+                <>
+                    <div className="body-top"></div>
+                    <div className="body-bottom"></div>
+                </>
+            )
+        }
+    }
+
     return (
         <div className="App">
             <div className="container" style={{ width: maxWidth, height: maxHeight }} ref={containerRef}>
                 {boxes.map((box, id) => (
                     <div
                         key={id}
-                        className="box"
-                        style={{ top: box.y, left: box.x + (containerRef.current?.offsetLeft ?? 0) }}
-                    ></div>
+                        className={`snake snake-${box.type} ${box.direction} ${box.bend ? "bend" : ""} ${
+                            box.ateFood ? "ate-food" : ""
+                        }`}
+                        style={{ top: box.position.y, left: box.position.x + (containerRef.current?.offsetLeft ?? 0) }}
+                    >
+                        {renderInnerBody(box)}
+                    </div>
                 ))}
                 <div
-                    className="box food"
+                    className="food"
                     style={{ top: food.y, left: food.x + (containerRef.current?.offsetLeft ?? 0) }}
                 ></div>
                 {gameOver && (
@@ -367,6 +512,9 @@ export default function App() {
                 <div className="score">
                     <h2 className="score-item">Score: {score}</h2>
                     <h5 className="score-item">High Score: {highScore}</h5>
+                </div>
+                <div className="pause-button">
+                    <button onClick={() => setPaused((paused) => !paused)}>{paused ? "Continue" : "Pause"}</button>
                 </div>
                 <div className="controls">
                     <div className="row">
