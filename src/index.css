@@ -190,3 +190,31 @@
   flex-direction: column;
   justify-content: center;
 }
+
+.fullscreen-button {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.pause-button button,
+.fullscreen-button button {
+  padding: 8px 16px;
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.pause-button button:hover,
+.fullscreen-button button:hover {
+  background-color: #1565c0;
+}
+
+.pause-button button:active,
+.fullscreen-button button:active {
+  background-color: #0d47a1;
+}
