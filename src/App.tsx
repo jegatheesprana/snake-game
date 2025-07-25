@@ -521,7 +521,7 @@ export default function App() {
     return (
         <div className="App">
             <div className="game-header">
-                <h1 className="game-title" onClick={handleTitleClick} style={{ cursor: 'pointer' }}>
+                <h1 className="game-title" onClick={handleTitleClick} style={{ cursor: "pointer" }}>
                     🐍 SNAKE GAME 🐍
                 </h1>
                 <div className="score-display">
