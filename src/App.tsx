@@ -5,7 +5,8 @@ const boxSize = 20;
 const scoreForFood = 100;
 const speedUpForEvery = 4;
 const getNearPixel = (value: number) => value - (value % boxSize);
-const maxHeight = getNearPixel(document.body.clientHeight) - 100;
+const gameHeight = Math.floor(window.innerHeight * 0.5); // 50% of viewport height
+const maxHeight = getNearPixel(gameHeight) - 40; // Leave some margin
 const maxWidth = getNearPixel(document.body.clientWidth);
 
 export enum Direction {
@@ -175,7 +176,6 @@ export default function App() {
     const [food, setFood] = useState(foodRef.current);
     const [highScore, setHighScore] = useState(Number(localStorage.getItem("highScore") ?? "0"));
     const [paused, setPaused] = useState(false);
-    const [isFullscreen, setIsFullscreen] = useState(false);
 
     const pushDirection = (newDirection: Direction) => {
         const last = directionRef.current[directionRef.current.length - 1];
@@ -458,37 +458,21 @@ export default function App() {
         setFood(foodRef.current);
     };
 
-    const toggleFullscreen = () => {
-        if (!document.fullscreenElement) {
-            document.documentElement
-                .requestFullscreen()
-                .then(() => {
-                    setIsFullscreen(true);
-                })
-                .catch((err) => {
-                    console.error(`Error attempting to enable fullscreen: ${err.message}`);
-                });
-        } else {
-            document
-                .exitFullscreen()
-                .then(() => {
-                    setIsFullscreen(false);
-                })
-                .catch((err) => {
-                    console.error(`Error attempting to exit fullscreen: ${err.message}`);
-                });
-        }
-    };
-
+    // Auto fullscreen on startup
     useEffect(() => {
-        const handleFullscreenChange = () => {
-            setIsFullscreen(!!document.fullscreenElement);
+        const enableFullscreen = async () => {
+            try {
+                if (!document.fullscreenElement) {
+                    await document.documentElement.requestFullscreen();
+                }
+            } catch (err) {
+                console.log("Fullscreen not supported or user denied:", err);
+            }
         };
 
-        document.addEventListener("fullscreenchange", handleFullscreenChange);
-        return () => {
-            document.removeEventListener("fullscreenchange", handleFullscreenChange);
-        };
+        // Add a small delay to ensure the component is mounted
+        const timer = setTimeout(enableFullscreen, 100);
+        return () => clearTimeout(timer);
     }, []);
 
     const renderInnerBody = (bodyPart: SnakePart) => {
@@ -524,6 +508,13 @@ export default function App() {
 
     return (
         <div className="App">
+            <div className="game-header">
+                <h1 className="game-title">🐍 SNAKE GAME 🐍</h1>
+                <div className="score-display">
+                    <div className="score-item">Score: {score}</div>
+                    <div className="score-item">High Score: {highScore}</div>
+                </div>
+            </div>
             <div className="container" style={{ width: maxWidth, height: maxHeight }} ref={containerRef}>
                 {boxes.map((box, id) => (
                     <div
@@ -548,31 +539,26 @@ export default function App() {
                 )}
             </div>
             <div className="dashboard">
-                <div className="score">
-                    <h2 className="score-item">Score: {score}</h2>
-                    <h5 className="score-item">High Score: {highScore}</h5>
-                </div>
-                <div className="pause-button">
-                    <button onClick={() => setPaused((paused) => !paused)}>{paused ? "Continue" : "Pause"}</button>
-                </div>
-                <div className="fullscreen-button">
-                    <button onClick={toggleFullscreen}>{isFullscreen ? "Exit Fullscreen" : "Fullscreen"}</button>
-                </div>
                 <div className="controls">
-                    <div className="row">
-                        <button onClick={onUp}>
+                    <div className="control-row">
+                        <button onClick={onUp} className="direction-btn">
                             <Arrow direction={Direction.UP} />
                         </button>
                     </div>
-                    <div className="row">
-                        <button onClick={onLeft}>
+                    <div className="control-row">
+                        <button onClick={onLeft} className="direction-btn">
                             <Arrow direction={Direction.LEFT} />
                         </button>
-                        <button onClick={onDown}>
-                            <Arrow direction={Direction.DOWN} />
+                        <button onClick={() => setPaused((paused) => !paused)} className="pause-btn">
+                            {paused ? "▶" : "⏸"}
                         </button>
-                        <button onClick={onRight}>
+                        <button onClick={onRight} className="direction-btn">
                             <Arrow direction={Direction.RIGHT} />
+                        </button>
+                    </div>
+                    <div className="control-row">
+                        <button onClick={onDown} className="direction-btn">
+                            <Arrow direction={Direction.DOWN} />
                         </button>
                     </div>
                 </div>
