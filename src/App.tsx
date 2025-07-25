@@ -475,6 +475,18 @@ export default function App() {
         return () => clearTimeout(timer);
     }, []);
 
+    const handleTitleClick = async () => {
+        try {
+            if (!document.fullscreenElement) {
+                await document.documentElement.requestFullscreen();
+            } else {
+                await document.exitFullscreen();
+            }
+        } catch (err) {
+            console.log("Fullscreen operation failed:", err);
+        }
+    };
+
     const renderInnerBody = (bodyPart: SnakePart) => {
         if (bodyPart.type === SnakePartType.BODY) {
             if (bodyPart.bend) {
@@ -509,7 +521,9 @@ export default function App() {
     return (
         <div className="App">
             <div className="game-header">
-                <h1 className="game-title">🐍 SNAKE GAME 🐍</h1>
+                <h1 className="game-title" onClick={handleTitleClick} style={{ cursor: 'pointer' }}>
+                    🐍 SNAKE GAME 🐍
+                </h1>
                 <div className="score-display">
                     <div className="score-item">Score: {score}</div>
                     <div className="score-item">High Score: {highScore}</div>

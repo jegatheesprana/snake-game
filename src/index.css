@@ -28,6 +28,24 @@
   letter-spacing: 3px;
   font-weight: bold;
   margin-bottom: 60px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+.game-title:hover {
+  color: #00ff88;
+  text-shadow: 
+    0 0 25px rgba(0, 255, 0, 1),
+    0 0 35px rgba(0, 255, 0, 0.6);
+  transform: scale(1.05);
+}
+
+.game-title:active {
+  transform: scale(0.98);
+  text-shadow: 
+    0 0 15px rgba(0, 255, 0, 0.9),
+    0 0 25px rgba(0, 255, 0, 0.5);
 }
 
 .score-display {
